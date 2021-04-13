@@ -7,6 +7,7 @@ from PIL import ImageGrab
 import cv2
 import ctypes
 import threading
+import time
 
 
 class Root(Tk):
@@ -22,6 +23,7 @@ class Root(Tk):
         self.collect = True
         self.data_collector = threading.Thread(target=self.collect_data)
         self.data_collector.daemon = True
+        self.mode = None
 
         # self.update()
 
@@ -38,7 +40,22 @@ class Root(Tk):
         self.portLabel = Label(self, text="Enter the server port:")
         self.connectButton = Button(self, text="Connect...", command=self.connect)
 
+        # Calibration window
+        self.calibrateButton = Button(self, text="Calibrate", command=self.set_mode_calibrate)
+        self.calibrateDoneButton = Button(self, text="Done", command=self.set_mode_draw)
+        self.avgPitchLabel = Label(self, text="Average Pitch Offset:")
+        self.avgYawLabel = Label(self, text="Average Yaw Offset:")
+        self.avgPitchLabelValue = Label(self)
+        self.avgYawLabelValue = Label(self)
+        self.pitchOffset = 0
+        self.yawOffset = 0
+
+        self.previous_pitch = None
+        self.previous_yaw = None
+        self.timeSinceLastDraw = time.perf_counter()
+
         self.connect()
+        self.show_draw()
 
     def show_connect(self):
         self.IPLabel.grid(row=0, column=0, padx=10, pady=(10, 0), sticky=W)
@@ -47,53 +64,123 @@ class Root(Tk):
         self.portEntry.grid(row=1, column=1, padx=10, pady=(10, 10), sticky=W)
         self.connectButton.grid(row=1, column=2, padx=10, pady=(10, 10), sticky=W)
 
+
+    def set_mode_draw(self):
+        self.mode = "draw"
+        self.after_cancel(self.calibrate_timer)
+        self.show_draw()
+        self.update()
+
+    def set_mode_calibrate(self):
+        self.mode = "calibrate"
+        self.after_cancel(self.update_timer)
+        self.clear_all()
+        self.show_calibrate()
+        self.calibrate()
+
+    def show_calibrate(self):
+        self.avgPitchLabel.grid(row=0, column=0, padx=10, pady=10, sticky=W)
+        self.avgYawLabel.grid(row=1, column=0, padx=10, pady=10, sticky=W)
+        self.avgPitchLabelValue.grid(row=0, column=1, padx=10, pady=10, sticky=W)
+        self.avgYawLabelValue.grid(row=1, column=1, padx=10, pady=10, sticky=W)
+        self.calibrateDoneButton.grid(row=2, column=0, padx=10, pady=10, sticky=W)
+
+    def calibrate(self):
+        if len(self.data_queue) != 0:
+            self.pitchCali = round(self.data_queue[0]["pitch"])
+            self.yawCali= round(self.data_queue[0]["yaw"])
+            self.avgPitchLabelValue.config(text=str(self.pitchCali))
+            self.avgYawLabelValue.config(text=str(self.yawCali))
+            del(self.data_queue[0])
+
+        self.calibrate_timer = self.after(1, self.calibrate)
+
+
     def show_draw(self):
         # Grid structure
-        self.canvas.grid(row=0, column=0, pady=2, sticky=W)
-        self.label.grid(row=0, column=1, pady=2, padx=2)
-        self.clearButton.grid(row=1, column=0, pady=2)
-        self.orientation.grid(row=1, column=1)
+        self.clear_all()
 
-        # Draw lines based on mouse motion
-        self.canvas.bind("<B1-Motion>", self.draw_lines)
+        self.canvas.grid(row=0, column=0, pady=2, sticky=W, columnspan=2)
+        self.label.grid(row=0, column=2, pady=2, padx=2)
+        self.clearButton.grid(row=1, column=0, pady=2)
+        self.orientation.grid(row=1, column=2)
+        self.calibrateButton.grid(row=1, column=1, padx=10, pady=(10, 10), sticky=W)
 
     def clear_canvas(self):
         self.canvas.delete("all")
 
-    def draw_lines(self, y):
-        x = 300
-        if y < 180:
-            toPrintY = 300-10*y
+    def draw_lines(self, currentYaw, currentPitch):
+
+        if time.perf_counter() - self.timeSinceLastDraw >= 0.5:
+            self.previous_yaw, self.previous_pitch = None, None
+
+
+        toPrintY = None
+        toPrintX = None
+
+        # Pitch is always accurate so far
+        if currentPitch < 180:
+            toPrintY = 300-10*currentPitch
             if toPrintY < 0:
                 toPrintY = 0
 
-        if y >= 180:
-            toPrintY = 300 - (y - 360) * 10
+        if currentPitch >= 180:
+            toPrintY = 300 - (currentPitch - 360) * 10
             if toPrintY > 600:
                 toPrintY = 600
-        r = 8
-        self.canvas.create_oval(x - r, toPrintY - r, x + r, toPrintY + r, fill='black')
+
+
+        # Yaw needs calibration
+
+        # Yaw lower bound is greater than = zero, can be one linear function
+        if self.yawCali - 30 >= 0:
+            toPrintX = 10*currentYaw - (abs((self.yawCali-30)) * 10)
+            if toPrintX < 0:
+                toPrintX = 0
+        else:
+            if currentYaw < self.yawCali + 35:
+                toPrintX = 10*currentYaw - (abs((self.yawCali-30)) * 10)
+            else:
+                toPrintX = -10*(currentYaw-360+(30-self.yawCali))
+        r = 16
+
+        if toPrintX is not None and toPrintY is not None:
+            # For the first time through
+            if self.previous_pitch is None:
+                self.previous_pitch = toPrintY
+            if self.previous_yaw is None:
+                self.previous_yaw = toPrintX
+
+            self.canvas.create_line(self.previous_yaw, self.previous_pitch, toPrintX, toPrintY, width=r)
+
+        self.previous_pitch = toPrintY
+        self.previous_yaw = toPrintX
+
+        self.timeSinceLastDraw = time.perf_counter()
 
     def update(self):
         if len(self.data_queue) != 0:
-            pitch = round(self.data_queue[0]["pitch"])
-            yaw = round(self.data_queue[0]["yaw"])
+            current_pitch = round(self.data_queue[0]["pitch"])
+            current_yaw = round(self.data_queue[0]["yaw"])
 
-            result = "Pitch: " + str(pitch) + ", Yaw: " + str(yaw)
-            self.orientation.config(text=result)
-            self.draw_lines(pitch)
+            if self.mode != "calibrate":
+                result = "Pitch: " + str(current_pitch) + ", Yaw: " + str(current_yaw)
+                self.orientation.config(text=result)
+                self.draw_lines(current_yaw, current_pitch)
+            else:
+                self.calibrate()
 
             del(self.data_queue[0])
 
-        self.after(1, self.update)
+        self.update_timer = self.after(1, self.update)
 
     def connect(self):
         # IP = self.IPEntry.get()
         # port = int(self.portEntry.get())
 
         # FOR ME
-        IP = '192.168.1.13'
-        port = 9607
+        IP = '192.168.1.17'
+        port = 9606
 
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,7 +202,8 @@ class Root(Tk):
         while self.collect:
             theData = self.socket.recv(4096)
             theData = pickle.loads(theData)
-            self.data_queue.append(theData)
+            if theData["pitch"] < 360 and theData["yaw"] < 360:
+                self.data_queue.append(theData)
 
     def all_children(self):
         list = self.winfo_children()
