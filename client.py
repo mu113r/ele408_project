@@ -53,9 +53,9 @@ class Root(Tk):
         self.previous_pitch = None
         self.previous_yaw = None
         self.timeSinceLastDraw = time.perf_counter()
+        self.yawCali = None
 
-        self.connect()
-        self.show_draw()
+        self.show_connect()
 
     def show_connect(self):
         self.IPLabel.grid(row=0, column=0, padx=10, pady=(10, 0), sticky=W)
@@ -63,7 +63,6 @@ class Root(Tk):
         self.portLabel.grid(row=1, column=0, padx=10, pady=(10, 10), sticky=W)
         self.portEntry.grid(row=1, column=1, padx=10, pady=(10, 10), sticky=W)
         self.connectButton.grid(row=1, column=2, padx=10, pady=(10, 10), sticky=W)
-
 
     def set_mode_draw(self):
         self.mode = "draw"
@@ -133,15 +132,24 @@ class Root(Tk):
         # Yaw needs calibration
 
         # Yaw lower bound is greater than = zero, can be one linear function
-        if self.yawCali - 30 >= 0:
+        if self.yawCali - 30 >= 0 and self.yawCali <= 330:
             toPrintX = 10*currentYaw - (abs((self.yawCali-30)) * 10)
             if toPrintX < 0:
                 toPrintX = 0
         else:
-            if currentYaw < self.yawCali + 35:
-                toPrintX = 10*currentYaw - (abs((self.yawCali-30)) * 10)
+            # 330 - 360 && 0 - 30
+            if self.yawCali > 330:
+                if currentYaw > 330:
+                    toPrintX = 10*(currentYaw - self.yawCali) + 300
+                else:
+                    toPrintX = 10 * ((360 + currentYaw) - self.yawCali) + 300
             else:
-                toPrintX = -10*(currentYaw-360+(30-self.yawCali))
+                if currentYaw < 30:
+                    toPrintX = 10*(currentYaw - self.yawCali) + 300
+                else:
+                    toPrintX = 10*(currentYaw - self.yawCali) - 3300
+
+        # print(self.yawCali, currentYaw, toPrintX)
         r = 16
 
         if toPrintX is not None and toPrintY is not None:
@@ -170,7 +178,8 @@ class Root(Tk):
             else:
                 self.calibrate()
 
-            del(self.data_queue[0])
+            if len(self.data_queue) != 0:
+                del(self.data_queue[0])
 
         self.update_timer = self.after(1, self.update)
 
