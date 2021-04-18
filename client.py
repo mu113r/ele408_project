@@ -165,6 +165,8 @@ class Root(Tk):
         self.previous_yaw = toPrintX
 
         self.timeSinceLastDraw = time.perf_counter()
+        im = ImageGrab.grab((self.canvas.winfo_rootx(), self.canvas.winfo_rooty(), (self.canvas.winfo_rootx() + self.canvas.winfo_width()), (self.canvas.winfo_rooty() + self.canvas.winfo_height())))
+        im = im.save('./static/image.jpg')
 
     def update(self):
         if len(self.data_queue) != 0:
@@ -184,11 +186,11 @@ class Root(Tk):
         self.update_timer = self.after(1, self.update)
 
     def connect(self):
-        # IP = self.IPEntry.get()
-        # port = int(self.portEntry.get())
+        #IP = self.IPEntry.get()
+        #port = int(self.portEntry.get())
 
         # FOR ME
-        IP = '192.168.1.17'
+        IP = '192.168.1.174'
         port = 9606
 
         try:
