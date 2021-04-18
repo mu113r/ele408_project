@@ -8,6 +8,7 @@ import cv2
 import ctypes
 import threading
 import time
+from os import path
 
 
 class Root(Tk):
@@ -32,6 +33,7 @@ class Root(Tk):
         self.canvas = Canvas(self, width=600, height=600, bg="white", cursor="cross")
         self.label = Label(self, text="Draw..", font=("Helvetica", 48))
         self.clearButton = Button(self, text="Clear", command=self.clear_canvas)
+        self.update_timer = None
 
         # Connection window
         self.IPEntry = Entry(self, width=25)
@@ -41,19 +43,19 @@ class Root(Tk):
         self.connectButton = Button(self, text="Connect...", command=self.connect)
 
         # Calibration window
+        self.calibrate_timer = None
         self.calibrateButton = Button(self, text="Calibrate", command=self.set_mode_calibrate)
         self.calibrateDoneButton = Button(self, text="Done", command=self.set_mode_draw)
         self.avgPitchLabel = Label(self, text="Average Pitch Offset:")
         self.avgYawLabel = Label(self, text="Average Yaw Offset:")
         self.avgPitchLabelValue = Label(self)
         self.avgYawLabelValue = Label(self)
-        self.pitchOffset = 0
-        self.yawOffset = 0
 
         self.previous_pitch = None
         self.previous_yaw = None
-        self.timeSinceLastDraw = time.perf_counter()
         self.yawCali = None
+        self.pitchCali = None
+        self.timeSinceLastDraw = time.perf_counter()
 
         self.show_connect()
 
@@ -113,6 +115,9 @@ class Root(Tk):
         if time.perf_counter() - self.timeSinceLastDraw >= 0.5:
             self.previous_yaw, self.previous_pitch = None, None
 
+        if self.yawCali is None or self.pitchCali is None:
+            self.yawCali = currentYaw
+            self.pitchCali = currentPitch
 
         toPrintY = None
         toPrintX = None
@@ -150,7 +155,8 @@ class Root(Tk):
                     toPrintX = 10*(currentYaw - self.yawCali) - 3300
 
         # print(self.yawCali, currentYaw, toPrintX)
-        r = 16
+        w = 16
+        r = w/2
 
         if toPrintX is not None and toPrintY is not None:
             # For the first time through
@@ -159,7 +165,8 @@ class Root(Tk):
             if self.previous_yaw is None:
                 self.previous_yaw = toPrintX
 
-            self.canvas.create_line(self.previous_yaw, self.previous_pitch, toPrintX, toPrintY, width=r)
+            self.canvas.create_line(self.previous_yaw, self.previous_pitch, toPrintX, toPrintY, width=w)
+            self.canvas.create_oval(toPrintX-r, toPrintY-r, toPrintX + r, toPrintY + r, fill='black')
 
         self.previous_pitch = toPrintY
         self.previous_yaw = toPrintX
@@ -186,12 +193,19 @@ class Root(Tk):
         self.update_timer = self.after(1, self.update)
 
     def connect(self):
-        #IP = self.IPEntry.get()
-        #port = int(self.portEntry.get())
 
-        # FOR ME
-        IP = '192.168.1.174'
-        port = 9606
+
+        if path.isfile(r'static/ip.txt'):
+            IP, port = self.get_ip()
+            self.IPEntry.insert(0, IP)
+            self.portEntry.insert(0, str(port))
+        else:
+            IP = self.IPEntry.get()
+            port = int(self.portEntry.get())
+            f = open(r'static/ip.txt', "w")
+            f.write(IP + "\n")
+            f.write(str(port))
+            f.close()
 
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -215,6 +229,13 @@ class Root(Tk):
             theData = pickle.loads(theData)
             if theData["pitch"] < 360 and theData["yaw"] < 360:
                 self.data_queue.append(theData)
+
+    def get_ip(self):
+        f = open(r'static/ip.txt', "r")
+        IP = f.readline()
+        port = int(f.readline())
+        f.close()
+        return IP, port
 
     def all_children(self):
         list = self.winfo_children()

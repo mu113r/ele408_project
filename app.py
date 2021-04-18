@@ -9,7 +9,7 @@ socketio = SocketIO(app)
 
 @app.route('/')
 def index():
-    return render_template('./index.html')
+    return render_template(r'templates/index.html')
 
 @socketio.on('my event')
 def handle_my_custom_event(myjson):
