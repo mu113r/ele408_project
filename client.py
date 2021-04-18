@@ -66,20 +66,31 @@ class Root(Tk):
         self.portEntry.grid(row=1, column=1, padx=10, pady=(10, 10), sticky=W)
         self.connectButton.grid(row=1, column=2, padx=10, pady=(10, 10), sticky=W)
 
+        if path.isfile(r'static/ip.txt'):
+            IP, port = self.get_ip()
+            self.IPEntry.insert(0, IP[:len(IP)-1])
+            self.portEntry.insert(0, str(port))
+
     def set_mode_draw(self):
         self.mode = "draw"
-        self.after_cancel(self.calibrate_timer)
+        try:
+            self.after_cancel(self.calibrate_timer)
+        except Exception:
+            pass
         self.show_draw()
         self.update()
 
     def set_mode_calibrate(self):
         self.mode = "calibrate"
-        self.after_cancel(self.update_timer)
-        self.clear_all()
+        try:
+            self.after_cancel(self.update_timer)
+        except Exception:
+            pass
         self.show_calibrate()
         self.calibrate()
 
     def show_calibrate(self):
+        self.clear_all()
         self.avgPitchLabel.grid(row=0, column=0, padx=10, pady=10, sticky=W)
         self.avgYawLabel.grid(row=1, column=0, padx=10, pady=10, sticky=W)
         self.avgPitchLabelValue.grid(row=0, column=1, padx=10, pady=10, sticky=W)
@@ -100,7 +111,6 @@ class Root(Tk):
     def show_draw(self):
         # Grid structure
         self.clear_all()
-
         self.canvas.grid(row=0, column=0, pady=2, sticky=W, columnspan=2)
         self.label.grid(row=0, column=2, pady=2, padx=2)
         self.clearButton.grid(row=1, column=0, pady=2)
@@ -194,18 +204,12 @@ class Root(Tk):
 
     def connect(self):
 
-
-        if path.isfile(r'static/ip.txt'):
-            IP, port = self.get_ip()
-            self.IPEntry.insert(0, IP)
-            self.portEntry.insert(0, str(port))
-        else:
-            IP = self.IPEntry.get()
-            port = int(self.portEntry.get())
-            f = open(r'static/ip.txt', "w")
-            f.write(IP + "\n")
-            f.write(str(port))
-            f.close()
+        IP = self.IPEntry.get()
+        port = int(self.portEntry.get())
+        f = open(r'static/ip.txt', "w")
+        f.write(IP + "\n")
+        f.write(str(port))
+        f.close()
 
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -217,8 +221,7 @@ class Root(Tk):
         if connected:
             self.data_collector.start()
             self.clear_all()
-            self.show_draw()
-            self.update()
+            self.set_mode_calibrate()
         else:
             print("Server Potentially not running")
             messagebox.showerror('Unable to connect', 'Is your Raspberry Pi server running on the correct port?')
