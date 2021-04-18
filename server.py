@@ -37,7 +37,17 @@ data_thread.start()
 time.sleep(1)
 
 # SERVER SENDING DATA
-host = '192.168.1.17'
+
+def get_host_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    finally:
+        s.close()
+    return ip
+
+host = get_host_ip()
 port = 9606
 s = socket.socket()
 s.bind((host, port))
