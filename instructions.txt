@@ -1,0 +1,19 @@
+1. execute 'python3 server.py' on a raspiberry pi
+2. execute 'python3 pictionary_app.py' on a computer
+3. execute 'python3 client.py' on the same computer running 2
+
+make sure you have the needed libraries installed:
+    - pickle
+    - Flask
+    - Flask-socketio
+    - socket
+    - threading
+    - sys
+    - tkinter
+    - sense_hat
+    - time
+    - numpy
+    - PIL
+    - cv2
+    
+OBS: website was developed and tested using google chrome. It is recommended to use browsers with support for JQuery
