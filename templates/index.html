@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Pictionary</title>
+        
+        <style>
+            .msgbbl {
+                background-color: #ddd;
+                padding: 5px 10px;
+                border-radius: 10px;
+                color: #555;
+                margin-bottom: 5px;
+            }
+            
+            .drawing {
+                border: 3px solid black;
+                width: 200px;
+                height: 200px;
+                margin: auto;
+            }
+            
+            .msg-wrapper {
+                max-height: 100px;
+                overflow-y: scroll;
+            }
+            
+            @media (min-width: 800px) {
+                .msg-wrapper {
+                    max-height: 200px;
+                    overflow-y: scroll;
+                }
+                
+                .drawing {
+                    width: 300px;
+                    height: 300px;
+                }
+            }
+            
+        </style>
+        
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    </head>
+    <body>
+        
+        <div class="container-fluid">
+            <div class="well text-center">
+                <h4>Pictionary</h4>
+            </div>
+            <div class="drawing"><img src="../static/image.jpg" alt='Image will go here' class="drawing" id="drawing"/></div>
+            <div class="col-sm-8">
+                <div class="nomsg">
+                    <h1 style="color: #ccc">No Message Yet!</h1>
+                    <div class="msg-wrapper"></div>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <form action="" method="POST">
+                    <b>Type Your Message Below <span class="glyphicon glyphicon-arrow-down"></span></b>
+                    <hr>
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">User Name</label>
+                        <input type="text" class="username form-control" id="" placeholder="User Name">
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Message</label>
+                        <input type="text" class="message form-control" id="" placeholder="Message">
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 12">
+                        <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.758 2.855L15 11.114v-5.73zm-.034 6.878L9.271 8.82 8 9.583 6.728 8.82l-5.694 3.44A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.739zM1 11.114l4.758-2.876L1 5.383v5.73z"/>
+                        </svg>
+                        Send
+                    </button>
+                    <div class="form-group">
+                    
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+        
+        <script>
+            var socket = io.connect('http://127.0.0.1:5000')
+            socket.on('connect', function() {
+                socket.emit('my event', {
+                    data : 'User Connected'
+                })
+            } )
+            var form = $('form').on('submit', function (e) {
+                e.preventDefault()
+                var user_name = $('input.username').val()
+                var message = $('input.message').val()
+                socket.emit('my event', {
+                    user : user_name,
+                    msg : message
+                })
+                $('input.message').val('').focus()
+            })
+            socket.on('my response', function(msg) {
+                if(typeof msg.user !== 'undefined') {
+                    $('h1').remove()
+                    $('div.msg-wrapper').append('<div class="msgbbl"><b>'+msg.user+'</b> '+ msg.msg+'</div>')
+                }
+                $('div.msg-wrapper').scrollTop(10000)
+                console.log(msg)
+            })
+            setInterval(function() {
+                d = new Date();
+                $("#drawing").attr("src", "../static/image.jpg?"+d.getTime());
+            }, 200);
+        </script>
+        
+        
+    </body>
+</html>
