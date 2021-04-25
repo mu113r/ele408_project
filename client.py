@@ -3,7 +3,7 @@ import socket
 from tkinter import *
 from tkinter import messagebox
 import numpy as np
-from PIL import ImageGrab
+from PIL import ImageGrab, ImageTk, Image
 import cv2
 import ctypes
 import threading
@@ -56,6 +56,7 @@ class Root(Tk):
         self.yawCali = None
         self.pitchCali = None
         self.timeSinceLastDraw = time.perf_counter()
+        self.timeSinceLastImage = time.perf_counter()
 
         self.show_connect()
 
@@ -143,9 +144,7 @@ class Root(Tk):
             if toPrintY > 600:
                 toPrintY = 600
 
-
         # Yaw needs calibration
-
         # Yaw lower bound is greater than = zero, can be one linear function
         if self.yawCali - 30 >= 0 and self.yawCali <= 330:
             toPrintX = 10*currentYaw - (abs((self.yawCali-30)) * 10)
@@ -175,17 +174,23 @@ class Root(Tk):
             if self.previous_yaw is None:
                 self.previous_yaw = toPrintX
 
-            self.canvas.create_line(self.previous_yaw, self.previous_pitch, toPrintX, toPrintY, width=w)
-            self.canvas.create_oval(toPrintX-r, toPrintY-r, toPrintX + r, toPrintY + r, fill='black')
 
+        self.canvas.create_line(self.previous_yaw, self.previous_pitch, toPrintX, toPrintY, width=w)
+        self.canvas.create_oval(toPrintX-r, toPrintY-r, toPrintX + r, toPrintY + r, fill='black')
+        self.timeSinceLastDraw = time.perf_counter()
         self.previous_pitch = toPrintY
         self.previous_yaw = toPrintX
 
-        self.timeSinceLastDraw = time.perf_counter()
-        im = ImageGrab.grab((self.canvas.winfo_rootx(), self.canvas.winfo_rooty(), (self.canvas.winfo_rootx() + self.canvas.winfo_width()), (self.canvas.winfo_rooty() + self.canvas.winfo_height())))
-        im = im.save('./static/image.jpg')
+    def update_image(self):
+        if time.perf_counter() - self.timeSinceLastImage >= 0.150:
+            im = ImageGrab.grab((self.canvas.winfo_rootx(), self.canvas.winfo_rooty(), (self.canvas.winfo_rootx() + self.canvas.winfo_width()), (self.canvas.winfo_rooty() + self.canvas.winfo_height())))
+            im = im.save('./static/image.jpg')
+            self.timeSinceLastImage = time.perf_counter()
 
     def update(self):
+
+        self.update_image()
+
         if len(self.data_queue) != 0:
             current_pitch = round(self.data_queue[0]["pitch"])
             current_yaw = round(self.data_queue[0]["yaw"])
@@ -200,7 +205,7 @@ class Root(Tk):
             if len(self.data_queue) != 0:
                 del(self.data_queue[0])
 
-        self.update_timer = self.after(1, self.update)
+        self.update_timer = self.after(10, self.update)
 
     def connect(self):
 
